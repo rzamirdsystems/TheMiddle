@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Middle | Meeting Room</title>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-main: #0f172a; --bg-card: #1e293b; --primary: #818cf8;
+            --text-main: #f8fafc; --text-muted: #94a3b8; --border: #334155;
+            --weekend: #161e2e; --danger: #ef4444;
+            /* New Color Variables */
+            --color-recurring: #10b981; /* Green */
+            --color-onetime: #a855f7;    /* Purple */
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; 
+            background: var(--bg-main); color: var(--text-main);
+            padding: 40px 20px; overflow-y: auto; 
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        h1 { font-size: 1.8rem; font-weight: 600; margin: 0; color: var(--primary); letter-spacing: -0.03em; }
+
+        #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        
+        .fc { --fc-border-color: var(--border); }
+        .fc-theme-standard td, .fc-theme-standard th { border: 1px solid var(--border); }
+        .fc-col-header-cell { padding: 15px 0 !important; background: #1e293b; color: var(--text-main); }
+        .fc-day-sat, .fc-day-sun { background-color: var(--weekend) !important; }
+        
+        /* Event Styling */
+        .fc-v-event { border: none !important; border-left: 4px solid #fff !important; cursor: pointer; border-radius: 6px !important; }
+
+        .modal { display: none; position: fixed; z-index: 9999; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px); align-items: center; justify-content: center; }
+        .modal-content { background: var(--bg-card); padding: 35px; width: 420px; border-radius: 28px; border: 1px solid var(--border); box-shadow: 0 0 60px rgba(0,0,0,0.7); }
+        label { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; display:block; margin-bottom:8px; text-transform: uppercase; }
+        input { width: 100%; padding: 15px; background: #0f172a; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; color: white; color-scheme: dark; box-sizing: border-box; }
+        
+        .time-row { display: flex; gap: 15px; }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; }
+        button { padding: 15px; border-radius: 14px; border: none; font-weight: 600; cursor: pointer; transition: transform 0.1s; }
+        
+        .btn-primary { background: var(--primary); color: #0f172a; }
+        .btn-outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger-solid { background: var(--danger); color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div><h1>The Middle - Meeting Room</h1><p id="clock" style="color: var(--text-muted); margin-top: 5px; font-size: 0.9rem;"></p></div>
+        </header>
+        <div id="calendar"></div>
+    </div>
+
+    <div id="createModal" class="modal"><div class="modal-content">
+        <h2 style="margin-top:0;">New Reservation</h2>
+        
+        <label>Your Name (Mandatory)</label>
+        <input type="text" id="mUser" placeholder="John Doe">
+
+        <label>Meeting Name</label>
+        <input type="text" id="mName" placeholder="e.g. Weekly Sync">
+        
+        <div class="time-row">
+            <div style="flex:1">
+                <label>Start Time</label>
+                <input type="time" id="mStart">
+            </div>
+            <div style="flex:1">
+                <label>End Time</label>
+                <input type="time" id="mEnd">
+            </div>
+        </div>
+
+        <label>Repeat Weekly Until</label>
+        <input type="date" id="mUntil">
+        
+        <div class="btn-group">
+            <button class="btn-primary" id="saveBtn">Confirm Booking</button>
+            <button class="btn-outline" onclick="closeModals()">Cancel</button>
+        </div>
+    </div></div>
+
+    <div id="viewModal" class="modal"><div class="modal-content">
+        <h2 id="viewTitle" style="margin-top:0;"></h2>
+        <div style="margin-bottom: 15px;">
+            <label>Booked By</label>
+            <div id="viewUser" style="color: var(--primary); font-weight: 600;"></div>
+        </div>
+        <div style="margin-bottom: 25px;">
+            <label>Time</label>
+            <div id="viewTime" style="color: var(--text-muted); font-size: 0.9rem;"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn-outline" onclick="closeModals()">Close</button>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-danger-outline" id="deleteSingleBtn">Delete only this day</button>
+                <button class="btn-danger-solid" id="deleteAllBtn">Delete entire series</button>
+            </div>
+        </div>
+    </div></div>
+
+    <script>
+        const supabaseUrl = 'https://yvmozzzxgnddzyvllpaq.supabase.co';
+        const supabaseKey = 'sb_publishable_qICkgjCmKOXC5-qMsu-psA__XFVW7z4'; 
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        let selectedBaseDate, currentEvent, calendar;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+
+            calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+                initialView: 'timeGridWeek', firstDay: 1, height: 'auto', slotMinTime: '08:00:00', slotMaxTime: '20:00:00',
+                allDaySlot: false, selectable: true, nowIndicator: true,
+                headerToolbar: { left: 'today prev,next', center: 'title', right: 'timeGridWeek,timeGridDay' },
+                events: async (info, success) => {
+                    const { data, error } = await _supabase.from('bookings').select('*');
+                    if (error) success([]);
+                    else success(data.map(e => {
+                        const isRecurring = e.series_id && e.series_id !== 'null';
+                        return { 
+                            id: e.id, 
+                            title: `${e.title} (${e.user_name || '?'})`, 
+                            start: e.start, 
+                            end: e.end,
+                            // COLOR LOGIC
+                            backgroundColor: isRecurring ? '#10b981' : '#a855f7',
+                            borderColor: isRecurring ? '#10b981' : '#a855f7',
+                            extendedProps: { series_id: e.series_id, user_name: e.user_name, original_title: e.title } 
+                        };
+                    }));
+                },
+                select: (info) => {
+                    selectedBaseDate = info.startStr.split('T')[0];
+                    document.getElementById('mStart').value = info.startStr.split('T')[1].substring(0,5);
+                    document.getElementById('mEnd').value = info.endStr.split('T')[1].substring(0,5);
+                    document.getElementById('mUntil').value = selectedBaseDate;
+                    document.getElementById('mUntil').min = selectedBaseDate;
+                    document.getElementById('createModal').style.display = 'flex';
+                },
+                eventClick: (info) => {
+                    currentEvent = info.event;
+                    const props = currentEvent.extendedProps;
+                    const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
+                    document.getElementById('viewTitle').innerText = props.original_title;
+                    document.getElementById('viewUser').innerText = props.user_name || 'Not specified';
+                    document.getElementById('viewTime').innerText = `${currentEvent.start.toLocaleString([], options)} - ${currentEvent.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}`;
+                    document.getElementById('deleteAllBtn').style.display = (props.series_id && props.series_id !== 'null') ? 'block' : 'none';
+                    document.getElementById('viewModal').style.display = 'flex';
+                }
+            });
+            calendar.render();
+        });
+
+        document.getElementById('saveBtn').onclick = async () => {
+            const userName = document.getElementById('mUser').value.trim();
+            const title = document.getElementById('mName').value.trim();
+            const startTime = document.getElementById('mStart').value;
+            const endTime = document.getElementById('mEnd').value;
+            const untilStr = document.getElementById('mUntil').value;
+            
+            if (!userName) return alert("Name is mandatory.");
+            if (!title || !startTime || !endTime) return alert("Fill in all fields.");
+
+            const untilDate = new Date(untilStr + 'T23:59:59');
+            const seriesId = 's_' + Date.now();
+            const bookings = [];
+            let currStart = new Date(selectedBaseDate + 'T' + startTime);
+            let currEnd = new Date(selectedBaseDate + 'T' + endTime);
+            
+            if (currEnd <= currStart) return alert("End time must be after start.");
+            const isRec = untilDate > new Date(currStart.getTime() + 86400000);
+
+            while (currStart <= untilDate) {
+                bookings.push({ 
+                    title, user_name: userName, 
+                    start: currStart.toISOString(), end: currEnd.toISOString(), 
+                    series_id: isRec ? seriesId : null 
+                });
+                currStart.setDate(currStart.getDate() + 7);
+                currEnd.setDate(currEnd.getDate() + 7);
+            }
+            await _supabase.from('bookings').insert(bookings);
+            calendar.refetchEvents(); closeModals();
+        };
+
+        document.getElementById('deleteSingleBtn').onclick = async () => {
+            if(confirm("Delete this?")) {
+                await _supabase.from('bookings').delete().eq('id', currentEvent.id);
+                calendar.refetchEvents(); closeModals();
+            }
+        };
+
+        document.getElementById('deleteAllBtn').onclick = async () => {
+            const sId = currentEvent.extendedProps.series_id;
+            if(confirm("Delete entire series?")) {
+                await _supabase.from('bookings').delete().eq('series_id', sId);
+                calendar.refetchEvents(); closeModals();
+            }
+        };
+
+        function closeModals() {
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+            document.getElementById('mName').value = '';
+            calendar.unselect();
+        }
+    </script>
+</body>
+</html>
