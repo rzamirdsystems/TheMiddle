@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Middle | Meeting Room</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
     
     <style>
@@ -13,7 +14,6 @@
             --bg-main: #0f172a; --bg-card: #1e293b; --primary: #818cf8;
             --text-main: #f8fafc; --text-muted: #94a3b8; --border: #334155;
             --weekend: #161e2e; --danger: #ef4444;
-            /* New Color Variables */
             --color-recurring: #10b981; /* Green */
             --color-onetime: #a855f7;    /* Purple */
         }
@@ -34,8 +34,6 @@
         .fc-theme-standard td, .fc-theme-standard th { border: 1px solid var(--border); }
         .fc-col-header-cell { padding: 15px 0 !important; background: #1e293b; color: var(--text-main); }
         .fc-day-sat, .fc-day-sun { background-color: var(--weekend) !important; }
-        
-        /* Event Styling */
         .fc-v-event { border: none !important; border-left: 4px solid #fff !important; cursor: pointer; border-radius: 6px !important; }
 
         .modal { display: none; position: fixed; z-index: 9999; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px); align-items: center; justify-content: center; }
@@ -111,9 +109,18 @@
     </div></div>
 
     <script>
-        const supabaseUrl = 'https://yvmozzzxgnddzyvllpaq.supabase.co';
-        const supabaseKey = 'sb_publishable_qICkgjCmKOXC5-qMsu-psA__XFVW7z4'; 
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        // Your Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyApcPFODHUGbHmnws1_QtEPNJdND7o3ZeE",
+            authDomain: "themiddle-meeting-room.firebaseapp.com",
+            projectId: "themiddle-meeting-room",
+            storageBucket: "themiddle-meeting-room.firebasestorage.app",
+            messagingSenderId: "754929478801",
+            appId: "1:754929478801:web:b68e3c015d465fc4832330"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         let selectedBaseDate, currentEvent, calendar;
 
@@ -125,38 +132,37 @@
                 allDaySlot: false, selectable: true, nowIndicator: true,
                 headerToolbar: { left: 'today prev,next', center: 'title', right: 'timeGridWeek,timeGridDay' },
                 events: async (info, success) => {
-                    const { data, error } = await _supabase.from('bookings').select('*');
-                    if (error) success([]);
-                    else success(data.map(e => {
-                        const isRecurring = e.series_id && e.series_id !== 'null';
-                        return { 
-                            id: e.id, 
-                            title: `${e.title} (${e.user_name || '?'})`, 
-                            start: e.start, 
-                            end: e.end,
-                            // COLOR LOGIC
+                    const snapshot = await db.collection('bookings').get();
+                    const events = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        const isRecurring = data.series_id && data.series_id !== 'null';
+                        return {
+                            id: doc.id,
+                            title: `${data.title} (${data.user_name || '?'})`,
+                            start: data.start,
+                            end: data.end,
                             backgroundColor: isRecurring ? '#10b981' : '#a855f7',
                             borderColor: isRecurring ? '#10b981' : '#a855f7',
-                            extendedProps: { series_id: e.series_id, user_name: e.user_name, original_title: e.title } 
+                            extendedProps: { ...data }
                         };
-                    }));
+                    });
+                    success(events);
                 },
                 select: (info) => {
                     selectedBaseDate = info.startStr.split('T')[0];
                     document.getElementById('mStart').value = info.startStr.split('T')[1].substring(0,5);
                     document.getElementById('mEnd').value = info.endStr.split('T')[1].substring(0,5);
                     document.getElementById('mUntil').value = selectedBaseDate;
-                    document.getElementById('mUntil').min = selectedBaseDate;
                     document.getElementById('createModal').style.display = 'flex';
                 },
                 eventClick: (info) => {
                     currentEvent = info.event;
                     const props = currentEvent.extendedProps;
                     const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
-                    document.getElementById('viewTitle').innerText = props.original_title;
+                    document.getElementById('viewTitle').innerText = props.title;
                     document.getElementById('viewUser').innerText = props.user_name || 'Not specified';
                     document.getElementById('viewTime').innerText = `${currentEvent.start.toLocaleString([], options)} - ${currentEvent.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}`;
-                    document.getElementById('deleteAllBtn').style.display = (props.series_id && props.series_id !== 'null') ? 'block' : 'none';
+                    document.getElementById('deleteAllBtn').style.display = props.series_id ? 'block' : 'none';
                     document.getElementById('viewModal').style.display = 'flex';
                 }
             });
@@ -170,20 +176,20 @@
             const endTime = document.getElementById('mEnd').value;
             const untilStr = document.getElementById('mUntil').value;
             
-            if (!userName) return alert("Name is mandatory.");
-            if (!title || !startTime || !endTime) return alert("Fill in all fields.");
+            if (!userName || !title || !startTime || !endTime) return alert("Fill in all fields.");
 
             const untilDate = new Date(untilStr + 'T23:59:59');
             const seriesId = 's_' + Date.now();
-            const bookings = [];
             let currStart = new Date(selectedBaseDate + 'T' + startTime);
             let currEnd = new Date(selectedBaseDate + 'T' + endTime);
             
             if (currEnd <= currStart) return alert("End time must be after start.");
             const isRec = untilDate > new Date(currStart.getTime() + 86400000);
+            const batch = db.batch();
 
             while (currStart <= untilDate) {
-                bookings.push({ 
+                const ref = db.collection('bookings').doc();
+                batch.set(ref, { 
                     title, user_name: userName, 
                     start: currStart.toISOString(), end: currEnd.toISOString(), 
                     series_id: isRec ? seriesId : null 
@@ -191,13 +197,13 @@
                 currStart.setDate(currStart.getDate() + 7);
                 currEnd.setDate(currEnd.getDate() + 7);
             }
-            await _supabase.from('bookings').insert(bookings);
+            await batch.commit();
             calendar.refetchEvents(); closeModals();
         };
 
         document.getElementById('deleteSingleBtn').onclick = async () => {
-            if(confirm("Delete this?")) {
-                await _supabase.from('bookings').delete().eq('id', currentEvent.id);
+            if(confirm("Delete this specific day?")) {
+                await db.collection('bookings').doc(currentEvent.id).delete();
                 calendar.refetchEvents(); closeModals();
             }
         };
@@ -205,7 +211,10 @@
         document.getElementById('deleteAllBtn').onclick = async () => {
             const sId = currentEvent.extendedProps.series_id;
             if(confirm("Delete entire series?")) {
-                await _supabase.from('bookings').delete().eq('series_id', sId);
+                const snapshot = await db.collection('bookings').where('series_id', '==', sId).get();
+                const batch = db.batch();
+                snapshot.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
                 calendar.refetchEvents(); closeModals();
             }
         };
