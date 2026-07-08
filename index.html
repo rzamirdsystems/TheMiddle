@@ -16,6 +16,7 @@
             --weekend: #161e2e; --danger: #ef4444;
             --color-recurring: #10b981;
             --color-onetime: #a855f7;
+            --quick-book: #10b981; /* Green accent color for instant booking */
         }
 
         body { 
@@ -28,9 +29,12 @@
         header { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
         h1 { font-size: 1.8rem; font-weight: 600; margin: 0; color: var(--primary); letter-spacing: -0.03em; }
 
-        .nav-container { display: flex; gap: 12px; margin-bottom: 25px; }
+        .nav-container { display: flex; gap: 12px; margin-bottom: 25px; align-items: center; }
         .nav-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-block; }
-        .nav-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); }
+        
+        /* Quick Book Button Style */
+        .quick-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--quick-book); background: transparent; color: var(--quick-book); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .quick-btn:hover { background: var(--quick-book); color: #0f172a; }
 
         #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
         
@@ -65,6 +69,7 @@
 
         <div class="nav-container">
             <a href="room2.html" class="nav-btn">Piano Room</a>
+            <button class="quick-btn" id="quickBookBtn">⚡ Quick Book 30 Mins</button>
         </div>
 
         <div id="calendar"></div>
@@ -136,6 +141,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
+            // Set default name if saved previously
+            if(localStorage.getItem('savedUserName')) {
+                document.getElementById('mUser').value = localStorage.getItem('savedUserName');
+            }
+
             calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
                 initialView: 'timeGridWeek', firstDay: 1, height: 'auto', slotMinTime: '08:00:00', slotMaxTime: '20:00:00',
                 allDaySlot: false, selectable: true, nowIndicator: true,
@@ -181,6 +191,32 @@
             calendar.render();
         });
 
+        // Quick Book Functionality
+        document.getElementById('quickBookBtn').onclick = async () => {
+            let userName = localStorage.getItem('savedUserName') || document.getElementById('mUser').value.trim();
+            if (!userName) {
+                userName = prompt("Enter your name to claim this room instantly:");
+                if (!userName || !userName.trim()) return;
+                userName = userName.trim();
+                localStorage.setItem('savedUserName', userName);
+                document.getElementById('mUser').value = userName;
+            }
+
+            const now = new Date();
+            const end = new Date(now.getTime() + 30 * 60 * 1000); // Now + 30 Minutes
+
+            await db.collection('bookings').add({
+                title: "Quick Sync",
+                user_name: userName,
+                start: now.toISOString(),
+                end: end.toISOString(),
+                series_id: null,
+                room: 'room1'
+            });
+
+            calendar.refetchEvents();
+        };
+
         document.getElementById('saveBtn').onclick = async () => {
             const userName = document.getElementById('mUser').value.trim();
             const title = document.getElementById('mName').value.trim();
@@ -189,6 +225,7 @@
             const untilStr = document.getElementById('mUntil').value;
             
             if (!userName || !title || !startTime || !endTime) return alert("Fill in all fields.");
+            localStorage.setItem('savedUserName', userName); // Cache name on regular submit too
 
             const untilDate = new Date(untilStr + 'T23:59:59');
             const seriesId = 's_' + Date.now();
