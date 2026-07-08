@@ -16,7 +16,7 @@
             --weekend: #161e2e; --danger: #ef4444;
             --color-recurring: #10b981;
             --color-onetime: #a855f7;
-            --quick-book: #10b981; /* Green accent color for instant booking */
+            --quick-book: #ef4444; /* Changed quick book theme color to Red */
         }
 
         body { 
@@ -32,7 +32,6 @@
         .nav-container { display: flex; gap: 12px; margin-bottom: 25px; align-items: center; }
         .nav-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-block; }
         
-        /* Quick Book Button Style */
         .quick-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--quick-book); background: transparent; color: var(--quick-book); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .quick-btn:hover { background: var(--quick-book); color: #0f172a; }
 
@@ -141,7 +140,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
-            // Set default name if saved previously
             if(localStorage.getItem('savedUserName')) {
                 document.getElementById('mUser').value = localStorage.getItem('savedUserName');
             }
@@ -157,13 +155,17 @@
                         const data = doc.data();
                         if (!data.room || data.room === 'room1') {
                             const isRecurring = data.series_id && data.series_id !== 'null';
+                            // Dynamic color choice - If title is "Quick Book", make it explicitly Red
+                            let blockColor = isRecurring ? '#10b981' : '#a855f7';
+                            if (data.title === "Quick Book") blockColor = '#ef4444';
+
                             events.push({
                                 id: doc.id,
                                 title: `${data.title} (${data.user_name || '?'})`,
                                 start: data.start,
                                 end: data.end,
-                                backgroundColor: isRecurring ? '#10b981' : '#a855f7',
-                                borderColor: isRecurring ? '#10b981' : '#a855f7',
+                                backgroundColor: blockColor,
+                                borderColor: blockColor,
                                 extendedProps: { ...data }
                             });
                         }
@@ -191,7 +193,7 @@
             calendar.render();
         });
 
-        // Quick Book Functionality
+        // Quick Book Logic with Smart Conflict Check
         document.getElementById('quickBookBtn').onclick = async () => {
             let userName = localStorage.getItem('savedUserName') || document.getElementById('mUser').value.trim();
             if (!userName) {
@@ -203,10 +205,36 @@
             }
 
             const now = new Date();
-            const end = new Date(now.getTime() + 30 * 60 * 1000); // Now + 30 Minutes
+            let end = new Date(now.getTime() + 30 * 60 * 1000);
+            let absoluteLimit = new Date(end);
+            let conflictFound = false;
+            let conflictTimeLabel = "";
+
+            // Loop through active calendar elements to identify upcoming reservations
+            const currentEvents = calendar.getEvents();
+            for (let ev of currentEvents) {
+                const evStart = new Date(ev.start);
+                // If a future meeting begins during our requested 30-min block
+                if (evStart > now && evStart < absoluteLimit) {
+                    if (evStart < end) {
+                        end = new Date(evStart.getTime()); // Truncate quick book to start of next event
+                        conflictFound = true;
+                        conflictTimeLabel = evStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    }
+                }
+            }
+
+            // Check if room is completely locked down right now
+            if ((end.getTime() - now.getTime()) <= 0) {
+                return alert("The room is already occupied right now!");
+            }
+
+            if (conflictFound) {
+                alert(`The full 30 mins were not booked since a new meeting is starting at ${conflictTimeLabel}. Room has been reserved until then.`);
+            }
 
             await db.collection('bookings').add({
-                title: "Quick Sync",
+                title: "Quick Book", // Name changed from "Quick Sync" to "Quick Book"
                 user_name: userName,
                 start: now.toISOString(),
                 end: end.toISOString(),
@@ -225,7 +253,7 @@
             const untilStr = document.getElementById('mUntil').value;
             
             if (!userName || !title || !startTime || !endTime) return alert("Fill in all fields.");
-            localStorage.setItem('savedUserName', userName); // Cache name on regular submit too
+            localStorage.setItem('savedUserName', userName);
 
             const untilDate = new Date(untilStr + 'T23:59:59');
             const seriesId = 's_' + Date.now();
