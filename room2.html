@@ -68,7 +68,7 @@
             .nav-container { flex-direction: column; width: 100%; align-items: stretch; gap: 10px; }
             .nav-btn, .quick-btn { width: 100%; box-sizing: border-box; padding: 14px; }
             
-            #calendar { padding: 10px; border-radius: 16px; }
+            #calendar { padding: 10px; border-radius: 16px; min-height: 400px; }
 
             .modal { align-items: flex-end; }
             .modal-content { width: 100%; border-radius: 24px 24px 0 0; max-height: 85vh; padding: 25px 20px; border-bottom: none; }
@@ -132,4 +132,34 @@
         </div>
         <div class="btn-group">
             <button class="btn-outline" onclick="closeModals()">Close</button>
-            <div style="margin-top: 15px; padding-top: 15px;
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-danger-outline" id="deleteSingleBtn">Delete only this day</button>
+                <button class="btn-danger-solid" id="deleteAllBtn">Delete entire series</button>
+            </div>
+        </div>
+    </div></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyApcPFODHUGbHmnws1_QtEPNJdND7o3ZeE",
+            authDomain: "themiddle-meeting-room.firebaseapp.com",
+            projectId: "themiddle-meeting-room",
+            storageBucket: "themiddle-meeting-room.firebasestorage.app",
+            messagingSenderId: "754929478801",
+            appId: "1:754929478801:web:b68e3c015d465fc4832330"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let selectedBaseDate, currentEvent, calendar;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+
+            if(localStorage.getItem('savedUserName')) {
+                document.getElementById('mUser').value = localStorage.getItem('savedUserName');
+            }
+
+            // Using foolproof window width check for standard rendering layout
+            const isMobileView = (window.innerWidth ||
