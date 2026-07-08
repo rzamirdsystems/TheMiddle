@@ -11,11 +11,11 @@
     
     <style>
         :root {
-            --bg-main: #0f172a; --bg-card: #1e293b; --primary: #38bdf8; /* Sky Blue for Room 2 */
+            --bg-main: #0f172a; --bg-card: #1e293b; --primary: #38bdf8;
             --text-main: #f8fafc; --text-muted: #94a3b8; --border: #334155;
             --weekend: #161e2e; --danger: #ef4444;
-            --color-recurring: #0284c7; /* Dark Blue */
-            --color-onetime: #f97316;    /* Orange */
+            --color-recurring: #0284c7;
+            --color-onetime: #f97316;
         }
 
         body { 
@@ -25,11 +25,11 @@
         }
 
         .container { max-width: 1200px; margin: 0 auto; }
-        header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        header { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
         h1 { font-size: 1.8rem; font-weight: 600; margin: 0; color: var(--primary); letter-spacing: -0.03em; }
 
-        .room-nav { display: flex; gap: 10px; }
-        .nav-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+        .nav-container { display: flex; gap: 12px; margin-bottom: 25px; }
+        .nav-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-block; }
         .nav-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); }
 
         #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
@@ -59,15 +59,15 @@
 
     <div class="container">
         <header>
-            <div>
-                <h1>The Middle - Meeting Room 2</h1>
-                <p id="clock" style="color: var(--text-muted); margin-top: 5px; font-size: 0.9rem;"></p>
-            </div>
-            <div class="room-nav">
-                <a href="index.html" class="nav-btn">Room 1</a>
-                <a href="room2.html" class="nav-btn active">Room 2</a>
-            </div>
+            <h1>The Middle - Meeting Room 2</h1>
+            <p id="clock" style="color: var(--text-muted); margin-top: 5px; font-size: 0.9rem; margin-bottom: 0;"></p>
         </header>
+
+        <div class="nav-container">
+            <a href="index.html" class="nav-btn">Room 1</a>
+            <a href="room2.html" class="nav-btn active">Room 2</a>
+        </div>
+
         <div id="calendar"></div>
     </div>
 
@@ -142,7 +142,6 @@
                 allDaySlot: false, selectable: true, nowIndicator: true,
                 headerToolbar: { left: 'today prev,next', center: 'title', right: 'timeGridWeek,timeGridDay' },
                 events: async (info, success) => {
-                    // Only fetch events dedicated to room2
                     const snapshot = await db.collection('bookings').where('room', '==', 'room2').get();
                     const events = snapshot.docs.map(doc => {
                         const data = doc.data();
@@ -204,7 +203,7 @@
                     title, user_name: userName, 
                     start: currStart.toISOString(), end: currEnd.toISOString(), 
                     series_id: isRec ? seriesId : null,
-                    room: 'room2' // Tags new items as Room 2
+                    room: 'room2'
                 });
                 currStart.setDate(currStart.getDate() + 7);
                 currEnd.setDate(currEnd.getDate() + 7);
