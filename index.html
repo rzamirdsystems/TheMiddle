@@ -30,13 +30,13 @@
         h1 { font-size: 1.8rem; font-weight: 600; margin: 0; color: var(--primary); letter-spacing: -0.03em; }
 
         .nav-container { display: flex; gap: 12px; margin-bottom: 25px; align-items: center; }
-        .nav-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-block; }
+        .nav-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-block; text-align: center; }
         
-        .quick-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--quick-book); background: transparent; color: var(--quick-book); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .quick-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--quick-book); background: transparent; color: var(--quick-book); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; }
         .quick-btn:hover:not(:disabled) { background: var(--quick-book); color: #0f172a; }
         .quick-btn:disabled { border-color: var(--border); color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
 
-        #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); min-height: 500px; }
+        #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); min-height: 650px; display: block !important; }
         
         .fc { --fc-border-color: var(--border); }
         .fc-theme-standard td, .fc-theme-standard th { border: 1px solid var(--border); }
@@ -44,8 +44,10 @@
         .fc-day-sat, .fc-day-sun { background-color: var(--weekend) !important; }
         .fc-v-event { border: none !important; border-left: 4px solid #fff !important; cursor: pointer; border-radius: 6px !important; }
 
+        .fc .fc-toolbar { flex-wrap: wrap; gap: 8px; }
+
         .modal { display: none; position: fixed; z-index: 9999; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px); align-items: center; justify-content: center; }
-        .modal-content { background: var(--bg-card); padding: 35px; width: 420px; border-radius: 28px; border: 1px solid var(--border); box-shadow: 0 0 60px rgba(0,0,0,0.7); }
+        .modal-content { background: var(--bg-card); padding: 35px; width: 420px; border-radius: 28px; border: 1px solid var(--border); box-shadow: 0 0 60px rgba(0,0,0,0.7); box-sizing: border-box; max-height: 90vh; overflow-y: auto; }
         label { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; display:block; margin-bottom:8px; text-transform: uppercase; }
         input { width: 100%; padding: 15px; background: #0f172a; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; color: white; color-scheme: dark; box-sizing: border-box; }
         
@@ -57,6 +59,20 @@
         .btn-outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
         .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
         .btn-danger-solid { background: var(--danger); color: white; }
+
+        /* 📱 MOBILE OVERRIDES */
+        @media (max-width: 768px) {
+            body { padding: 20px 10px; }
+            header { text-align: center; }
+            
+            .nav-container { flex-direction: column; width: 100%; align-items: stretch; gap: 10px; }
+            .nav-btn, .quick-btn { width: 100%; box-sizing: border-box; padding: 14px; }
+            
+            #calendar { padding: 10px; border-radius: 16px; min-height: 550px; }
+
+            .modal { align-items: flex-end; }
+            .modal-content { width: 100%; border-radius: 24px 24px 0 0; max-height: 85vh; padding: 25px 20px; border-bottom: none; }
+        }
     </style>
 </head>
 <body>
@@ -76,7 +92,7 @@
     </div>
 
     <div id="createModal" class="modal"><div class="modal-content">
-        <h2 style="margin-top:0;">New Reservation (The Middle)</h2>
+        <h2 style="margin-top:0; font-size:1.4rem;">New Reservation (The Middle)</h2>
         
         <label>Your Name (Mandatory)</label>
         <input type="text" id="mUser" placeholder="John Doe">
@@ -105,7 +121,7 @@
     </div></div>
 
     <div id="viewModal" class="modal"><div class="modal-content">
-        <h2 id="viewTitle" style="margin-top:0;"></h2>
+        <h2 id="viewTitle" style="margin-top:0; font-size:1.4rem;"></h2>
         <div style="margin-bottom: 15px;">
             <label>Booked By</label>
             <div id="viewUser" style="color: var(--primary); font-weight: 600;"></div>
@@ -145,10 +161,21 @@
                 document.getElementById('mUser').value = localStorage.getItem('savedUserName');
             }
 
+            // Always start with 'timeGridWeek' unconditionally to prevent script thread blockages
             calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-                initialView: 'timeGridWeek', firstDay: 1, height: 'auto', slotMinTime: '08:00:00', slotMaxTime: '20:00:00',
-                allDaySlot: false, selectable: true, nowIndicator: true,
-                headerToolbar: { left: 'today prev,next', center: 'title', right: 'timeGridWeek,timeGridDay' },
+                initialView: 'timeGridWeek', 
+                firstDay: 1, 
+                height: 'auto', 
+                slotMinTime: '08:00:00', 
+                slotMaxTime: '20:00:00',
+                allDaySlot: false, 
+                selectable: true, 
+                nowIndicator: true,
+                headerToolbar: { 
+                    left: 'today prev,next', 
+                    center: 'title', 
+                    right: 'timeGridWeek,timeGridDay' 
+                },
                 events: async function(info) {
                     try {
                         const snapshot = await db.collection('bookings').get();
@@ -171,7 +198,7 @@
                                 });
                             }
                         });
-                        return events; // Natively return array to fullcalendar promise wrapper
+                        return events;
                     } catch (err) {
                         console.error("Error loading events: ", err);
                         return [];
@@ -195,9 +222,19 @@
                     document.getElementById('viewModal').style.display = 'flex';
                 }
             });
+            
             calendar.render();
+            
+            // Safe asynchronous trigger block to update full view states on deployment load
+            setTimeout(() => {
+                const width = window.innerWidth || document.documentElement.clientWidth;
+                if (width <= 768) {
+                    calendar.changeView('timeGridDay');
+                }
+                calendar.updateSize();
+                window.dispatchEvent(new Event('resize'));
+            }, 200);
 
-            // Quick Book Logic bounded cleanly inside DOM lifecycle
             document.getElementById('quickBookBtn').onclick = async function() {
                 const btn = this;
                 let userName = localStorage.getItem('savedUserName') || document.getElementById('mUser').value.trim();
@@ -210,7 +247,6 @@
                     document.getElementById('mUser').value = userName;
                 }
 
-                // 1. Immediately disable button to prevent double/multiple clicks
                 btn.disabled = true;
 
                 const now = new Date();
@@ -222,19 +258,16 @@
                 let conflictFoundInWindow = false;
                 let conflictTimeLabel = "";
 
-                // 2. Scan active events via precise millisecond verification
                 const currentEvents = calendar.getEvents();
                 for (let ev of currentEvents) {
                     const startMs = new Date(ev.start).getTime();
                     const endMs = new Date(ev.end).getTime();
 
-                    // Scenario A: Room occupied right now
                     if (nowTime >= startMs && nowTime < endMs) {
                         isRoomOccupiedRightNow = true;
                         break;
                     }
 
-                    // Scenario B: Upcoming meeting clips the 30 min frame
                     if (startMs > nowTime && startMs < targetEndTime) {
                         if (startMs < endTime) {
                             endTime = startMs; 
@@ -244,7 +277,6 @@
                     }
                 }
 
-                // 3. Evaluation & Guardrail Execution
                 if (isRoomOccupiedRightNow) {
                     alert("Booking declined: The room is already occupied right now!");
                     btn.disabled = false; 
@@ -256,7 +288,6 @@
                 }
 
                 try {
-                    // 4. Record entry
                     await db.collection('bookings').add({
                         title: "Quick Book",
                         user_name: userName,
