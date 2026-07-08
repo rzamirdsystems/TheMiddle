@@ -16,6 +16,7 @@
             --weekend: #161e2e; --danger: #ef4444;
             --color-recurring: #0284c7;
             --color-onetime: #f97316;
+            --quick-book: #ef4444; 
         }
 
         body { 
@@ -28,11 +29,14 @@
         header { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
         h1 { font-size: 1.8rem; font-weight: 600; margin: 0; color: var(--primary); letter-spacing: -0.03em; }
 
-        .nav-container { display: flex; gap: 12px; margin-bottom: 25px; }
+        .nav-container { display: flex; gap: 12px; margin-bottom: 25px; align-items: center; }
         .nav-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--border); background: #1e293b; color: var(--text-muted); text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-block; }
-        .nav-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); }
+        
+        .quick-btn { padding: 10px 20px; border-radius: 10px; border: 1px solid var(--quick-book); background: transparent; color: var(--quick-book); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .quick-btn:hover:not(:disabled) { background: var(--quick-book); color: #0f172a; }
+        .quick-btn:disabled { border-color: var(--border); color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
 
-        #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        #calendar { background: var(--bg-card); padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); min-height: 500px; }
         
         .fc { --fc-border-color: var(--border); }
         .fc-theme-standard td, .fc-theme-standard th { border: 1px solid var(--border); }
@@ -65,6 +69,7 @@
 
         <div class="nav-container">
             <a href="index.html" class="nav-btn">The Middle</a>
+            <button class="quick-btn" id="quickBookBtn">⚡ Quick Book 30 Mins</button>
         </div>
 
         <div id="calendar"></div>
@@ -136,26 +141,39 @@
         document.addEventListener('DOMContentLoaded', function() {
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
+            if(localStorage.getItem('savedUserName')) {
+                document.getElementById('mUser').value = localStorage.getItem('savedUserName');
+            }
+
             calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
                 initialView: 'timeGridWeek', firstDay: 1, height: 'auto', slotMinTime: '08:00:00', slotMaxTime: '20:00:00',
                 allDaySlot: false, selectable: true, nowIndicator: true,
                 headerToolbar: { left: 'today prev,next', center: 'title', right: 'timeGridWeek,timeGridDay' },
-                events: async (info, success) => {
-                    const snapshot = await db.collection('bookings').where('room', '==', 'room2').get();
-                    const events = snapshot.docs.map(doc => {
-                        const data = doc.data();
-                        const isRecurring = data.series_id && data.series_id !== 'null';
-                        return {
-                            id: doc.id,
-                            title: `${data.title} (${data.user_name || '?'})`,
-                            start: data.start,
-                            end: data.end,
-                            backgroundColor: isRecurring ? '#0284c7' : '#f97316',
-                            borderColor: isRecurring ? '#0284c7' : '#f97316',
-                            extendedProps: { ...data }
-                        };
-                    });
-                    success(events);
+                events: async function(info) {
+                    try {
+                        const snapshot = await db.collection('bookings').where('room', '==', 'room2').get();
+                        const events = snapshot.docs.map(doc => {
+                            const data = doc.data();
+                            const isRecurring = data.series_id && data.series_id !== 'null';
+                            
+                            let blockColor = isRecurring ? '#0284c7' : '#f97316';
+                            if (data.title === "Quick Book") blockColor = '#ef4444';
+
+                            return {
+                                id: doc.id,
+                                title: `${data.title} (${data.user_name || '?'})`,
+                                start: data.start,
+                                end: data.end,
+                                backgroundColor: blockColor,
+                                borderColor: blockColor,
+                                extendedProps: { ...data }
+                            };
+                        });
+                        return events;
+                    } catch (err) {
+                        console.error("Error loading events: ", err);
+                        return [];
+                    }
                 },
                 select: (info) => {
                     selectedBaseDate = info.startStr.split('T')[0];
@@ -176,6 +194,84 @@
                 }
             });
             calendar.render();
+
+            // Quick Book Logic for Piano Room
+            document.getElementById('quickBookBtn').onclick = async function() {
+                const btn = this;
+                let userName = localStorage.getItem('savedUserName') || document.getElementById('mUser').value.trim();
+                
+                if (!userName) {
+                    userName = prompt("Enter your name to claim this room instantly:");
+                    if (!userName || !userName.trim()) return;
+                    userName = userName.trim();
+                    localStorage.setItem('savedUserName', userName);
+                    document.getElementById('mUser').value = userName;
+                }
+
+                // 1. Instantly lock down button
+                btn.disabled = true;
+
+                const now = new Date();
+                const nowTime = now.getTime();
+                let endTime = nowTime + (30 * 60 * 1000); 
+                let targetEndTime = endTime;
+
+                let isRoomOccupiedRightNow = false;
+                let conflictFoundInWindow = false;
+                let conflictTimeLabel = "";
+
+                // 2. Scan events
+                const currentEvents = calendar.getEvents();
+                for (let ev of currentEvents) {
+                    const startMs = new Date(ev.start).getTime();
+                    const endMs = new Date(ev.end).getTime();
+
+                    // Scenario A: Already occupied
+                    if (nowTime >= startMs && nowTime < endMs) {
+                        isRoomOccupiedRightNow = true;
+                        break;
+                    }
+
+                    // Scenario B: Overlaps look-ahead slot
+                    if (startMs > nowTime && startMs < targetEndTime) {
+                        if (startMs < endTime) {
+                            endTime = startMs; 
+                            conflictFoundInWindow = true;
+                            conflictTimeLabel = new Date(startMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                        }
+                    }
+                }
+
+                // 3. Execution guards
+                if (isRoomOccupiedRightNow) {
+                    alert("Booking declined: The room is already occupied right now!");
+                    btn.disabled = false; 
+                    return;
+                }
+
+                if (conflictFoundInWindow) {
+                    alert(`The full 30 mins were not booked since a new meeting is starting at ${conflictTimeLabel}. Room has been reserved until then.`);
+                }
+
+                try {
+                    // 4. Save to Firestore
+                    await db.collection('bookings').add({
+                        title: "Quick Book",
+                        user_name: userName,
+                        start: now.toISOString(),
+                        end: new Date(endTime).toISOString(),
+                        series_id: null,
+                        room: 'room2'
+                    });
+                    
+                    await calendar.refetchEvents();
+                } catch (error) {
+                    console.error("Booking failed:", error);
+                    alert("An error occurred while saving your booking. Please try again.");
+                } finally {
+                    btn.disabled = false;
+                }
+            };
         });
 
         document.getElementById('saveBtn').onclick = async () => {
@@ -186,6 +282,7 @@
             const untilStr = document.getElementById('mUntil').value;
             
             if (!userName || !title || !startTime || !endTime) return alert("Fill in all fields.");
+            localStorage.setItem('savedUserName', userName);
 
             const untilDate = new Date(untilStr + 'T23:59:59');
             const seriesId = 's_' + Date.now();
