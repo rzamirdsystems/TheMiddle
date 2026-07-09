@@ -84,7 +84,7 @@
         </header>
 
         <div class="nav-container">
-            <a href="room2.html" class="nav-btn">Piano Room</a>
+            <a href="room2.html" class="nav-btn">Switch to Piano Room</a>
             <button class="quick-btn" id="quickBookBtn">⚡ Quick Book 30 Mins</button>
         </div>
 
@@ -161,7 +161,6 @@
                 document.getElementById('mUser').value = localStorage.getItem('savedUserName');
             }
 
-            // Always start with 'timeGridWeek' unconditionally to prevent script thread blockages
             calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
                 initialView: 'timeGridWeek', 
                 firstDay: 1, 
@@ -191,179 +190,178 @@
                                     id: doc.id,
                                     title: `${data.title} (${data.user_name || '?'})`,
                                     start: data.start,
-                                    end: data.end,
-                                    backgroundColor: blockColor,
-                                    borderColor: blockColor,
-                                    extendedProps: { ...data }
-                                });
-                            }
-                        });
-                        return events;
-                    } catch (err) {
-                        console.error("Error loading events: ", err);
-                        return [];
-                    }
-                },
-                select: (info) => {
-                    selectedBaseDate = info.startStr.split('T')[0];
-                    document.getElementById('mStart').value = info.startStr.split('T')[1].substring(0,5);
-                    document.getElementById('mEnd').value = info.endStr.split('T')[1].substring(0,5);
-                    document.getElementById('mUntil').value = selectedBaseDate;
-                    document.getElementById('createModal').style.display = 'flex';
-                },
-                eventClick: (info) => {
-                    currentEvent = info.event;
-                    const props = currentEvent.extendedProps;
-                    const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
-                    document.getElementById('viewTitle').innerText = props.title;
-                    document.getElementById('viewUser').innerText = props.user_name || 'Not specified';
-                    document.getElementById('viewTime').innerText = `${currentEvent.start.toLocaleString([], options)} - ${currentEvent.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}`;
-                    document.getElementById('deleteAllBtn').style.display = props.series_id ? 'block' : 'none';
-                    document.getElementById('viewModal').style.display = 'flex';
-                }
-            });
-            
-            calendar.render();
-            
-            // Safe asynchronous trigger block to update full view states on deployment load
-            setTimeout(() => {
-                const width = window.innerWidth || document.documentElement.clientWidth;
-                if (width <= 768) {
-                    calendar.changeView('timeGridDay');
-                }
-                calendar.updateSize();
-                window.dispatchEvent(new Event('resize'));
-            }, 200);
-
-            document.getElementById('quickBookBtn').onclick = async function() {
-                const btn = this;
-                let userName = localStorage.getItem('savedUserName') || document.getElementById('mUser').value.trim();
-                
-                if (!userName) {
-                    userName = prompt("Enter your name to claim this room instantly:");
-                    if (!userName || !userName.trim()) return;
-                    userName = userName.trim();
-                    localStorage.setItem('savedUserName', userName);
-                    document.getElementById('mUser').value = userName;
-                }
-
-                btn.disabled = true;
-
-                const now = new Date();
-                const nowTime = now.getTime();
-                let endTime = nowTime + (30 * 60 * 1000); 
-                let targetEndTime = endTime;
-
-                let isRoomOccupiedRightNow = false;
-                let conflictFoundInWindow = false;
-                let conflictTimeLabel = "";
-
-                const currentEvents = calendar.getEvents();
-                for (let ev of currentEvents) {
-                    const startMs = new Date(ev.start).getTime();
-                    const endMs = new Date(ev.end).getTime();
-
-                    if (nowTime >= startMs && nowTime < endMs) {
-                        isRoomOccupiedRightNow = true;
-                        break;
-                    }
-
-                    if (startMs > nowTime && startMs < targetEndTime) {
-                        if (startMs < endTime) {
-                            endTime = startMs; 
-                            conflictFoundInWindow = true;
-                            conflictTimeLabel = new Date(startMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                                end: data.end,
+                                backgroundColor: blockColor,
+                                borderColor: blockColor,
+                                extendedProps: { ...data }
+                            });
                         }
+                    });
+                    return events;
+                } catch (err) {
+                    console.error("Error loading events: ", err);
+                    return [];
+                }
+            },
+            select: (info) => {
+                selectedBaseDate = info.startStr.split('T')[0];
+                document.getElementById('mStart').value = info.startStr.split('T')[1].substring(0,5);
+                document.getElementById('mEnd').value = info.endStr.split('T')[1].substring(0,5);
+                document.getElementById('mUntil').value = selectedBaseDate;
+                document.getElementById('createModal').style.display = 'flex';
+            },
+            eventClick: (info) => {
+                currentEvent = info.event;
+                const props = currentEvent.extendedProps;
+                const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
+                document.getElementById('viewTitle').innerText = props.title;
+                document.getElementById('viewUser').innerText = props.user_name || 'Not specified';
+                document.getElementById('viewTime').innerText = `${currentEvent.start.toLocaleString([], options)} - ${currentEvent.end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false})}`;
+                document.getElementById('deleteAllBtn').style.display = props.series_id ? 'block' : 'none';
+                document.getElementById('viewModal').style.display = 'flex';
+            }
+        });
+        
+        calendar.render();
+        
+        setTimeout(() => {
+            const width = window.innerWidth || document.documentElement.clientWidth;
+            if (width <= 768) {
+                calendar.changeView('timeGridDay');
+            }
+            calendar.updateSize();
+            window.dispatchEvent(new Event('resize'));
+        }, 200);
+
+        document.getElementById('quickBookBtn').onclick = async function() {
+            const btn = this;
+            let userName = localStorage.getItem('savedUserName') || document.getElementById('mUser').value.trim();
+            
+            if (!userName) {
+                userName = prompt("Enter your name to claim this room instantly:");
+                if (!userName || !userName.trim()) return;
+                userName = userName.trim();
+                localStorage.setItem('savedUserName', userName);
+                document.getElementById('mUser').value = userName;
+            }
+
+            btn.disabled = true;
+
+            const now = new Date();
+            const nowTime = now.getTime();
+            let endTime = nowTime + (30 * 60 * 1000); 
+            let targetEndTime = endTime;
+
+            let isRoomOccupiedRightNow = false;
+            let conflictFoundInWindow = false;
+            let conflictTimeLabel = "";
+
+            const currentEvents = calendar.getEvents();
+            for (let ev of currentEvents) {
+                const startMs = new Date(ev.start).getTime();
+                const endMs = new Date(ev.end).getTime();
+
+                if (nowTime >= startMs && nowTime < endMs) {
+                    isRoomOccupiedRightNow = true;
+                    break;
+                }
+
+                if (startMs > nowTime && startMs < targetEndTime) {
+                    if (startMs < endTime) {
+                        endTime = startMs; 
+                        conflictFoundInWindow = true;
+                        conflictTimeLabel = new Date(startMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                     }
                 }
+            }
 
-                if (isRoomOccupiedRightNow) {
-                    alert("Booking declined: The room is already occupied right now!");
-                    btn.disabled = false; 
-                    return;
-                }
+            if (isRoomOccupiedRightNow) {
+                alert("Booking declined: The room is already occupied right now!");
+                btn.disabled = false; 
+                return;
+            }
 
-                if (conflictFoundInWindow) {
-                    alert(`The full 30 mins were not booked since a new meeting is starting at ${conflictTimeLabel}. Room has been reserved until then.`);
-                }
+            if (conflictFoundInWindow) {
+                alert(`The full 30 mins were not booked since a new meeting is starting at ${conflictTimeLabel}. Room has been reserved until then.`);
+            }
 
-                try {
-                    await db.collection('bookings').add({
-                        title: "Quick Book",
-                        user_name: userName,
-                        start: now.toISOString(),
-                        end: new Date(endTime).toISOString(),
-                        series_id: null,
-                        room: 'room1'
-                    });
-                    
-                    await calendar.refetchEvents();
-                } catch (error) {
-                    console.error("Booking failed:", error);
-                    alert("An error occurred while saving your booking. Please try again.");
-                } finally {
-                    btn.disabled = false;
-                }
-            };
-        });
-
-        document.getElementById('saveBtn').onclick = async () => {
-            const userName = document.getElementById('mUser').value.trim();
-            const title = document.getElementById('mName').value.trim();
-            const startTime = document.getElementById('mStart').value;
-            const endTime = document.getElementById('mEnd').value;
-            const untilStr = document.getElementById('mUntil').value;
-            
-            if (!userName || !title || !startTime || !endTime) return alert("Fill in all fields.");
-            localStorage.setItem('savedUserName', userName);
-
-            const untilDate = new Date(untilStr + 'T23:59:59');
-            const seriesId = 's_' + Date.now();
-            let currStart = new Date(selectedBaseDate + 'T' + startTime);
-            let currEnd = new Date(selectedBaseDate + 'T' + endTime);
-            
-            if (currEnd <= currStart) return alert("End time must be after start.");
-            const isRec = untilDate > new Date(currStart.getTime() + 86400000);
-            const batch = db.batch();
-
-            while (currStart <= untilDate) {
-                const ref = db.collection('bookings').doc();
-                batch.set(ref, { 
-                    title, user_name: userName, 
-                    start: currStart.toISOString(), end: currEnd.toISOString(), 
-                    series_id: isRec ? seriesId : null,
+            try {
+                await db.collection('bookings').add({
+                    title: "Quick Book",
+                    user_name: userName,
+                    start: now.toISOString(),
+                    end: new Date(endTime).toISOString(),
+                    series_id: null,
                     room: 'room1'
                 });
-                currStart.setDate(currStart.getDate() + 7);
-                currEnd.setDate(currEnd.getDate() + 7);
+                
+                await calendar.refetchEvents();
+            } catch (error) {
+                console.error("Booking failed:", error);
+                alert("An error occurred while saving your booking. Please try again.");
+            } finally {
+                btn.disabled = false;
             }
+        };
+    });
+
+    document.getElementById('saveBtn').onclick = async () => {
+        const userName = document.getElementById('mUser').value.trim();
+        const title = document.getElementById('mName').value.trim();
+        const startTime = document.getElementById('mStart').value;
+        const endTime = document.getElementById('mEnd').value;
+        const untilStr = document.getElementById('mUntil').value;
+        
+        if (!userName || !title || !startTime || !endTime) return alert("Fill in all fields.");
+        localStorage.setItem('savedUserName', userName);
+
+        const untilDate = new Date(untilStr + 'T23:59:59');
+        const seriesId = 's_' + Date.now();
+        let currStart = new Date(selectedBaseDate + 'T' + startTime);
+        let currEnd = new Date(selectedBaseDate + 'T' + endTime);
+        
+        if (currEnd <= currStart) return alert("End time must be after start.");
+        const isRec = untilDate > new Date(currStart.getTime() + 86400000);
+        const batch = db.batch();
+
+        while (currStart <= untilDate) {
+            const ref = db.collection('bookings').doc();
+            batch.set(ref, { 
+                title, user_name: userName, 
+                start: currStart.toISOString(), end: currEnd.toISOString(), 
+                series_id: isRec ? seriesId : null,
+                room: 'room1'
+            });
+            currStart.setDate(currStart.getDate() + 7);
+            currEnd.setDate(currEnd.getDate() + 7);
+        }
+        await batch.commit();
+        calendar.refetchEvents(); closeModals();
+    };
+
+    document.getElementById('deleteSingleBtn').onclick = async () => {
+        if(confirm("Delete this specific day?")) {
+            await db.collection('bookings').doc(currentEvent.id).delete();
+            calendar.refetchEvents(); closeModals();
+        }
+    };
+
+    document.getElementById('deleteAllBtn').onclick = async () => {
+        const sId = currentEvent.extendedProps.series_id;
+        if(confirm("Delete entire series?")) {
+            const snapshot = await db.collection('bookings').where('series_id', '==', sId).get();
+            const batch = db.batch();
+            snapshot.forEach(doc => batch.delete(doc.ref));
             await batch.commit();
             calendar.refetchEvents(); closeModals();
-        };
-
-        document.getElementById('deleteSingleBtn').onclick = async () => {
-            if(confirm("Delete this specific day?")) {
-                await db.collection('bookings').doc(currentEvent.id).delete();
-                calendar.refetchEvents(); closeModals();
-            }
-        };
-
-        document.getElementById('deleteAllBtn').onclick = async () => {
-            const sId = currentEvent.extendedProps.series_id;
-            if(confirm("Delete entire series?")) {
-                const snapshot = await db.collection('bookings').where('series_id', '==', sId).get();
-                const batch = db.batch();
-                snapshot.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-                calendar.refetchEvents(); closeModals();
-            }
-        };
-
-        function closeModals() {
-            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-            document.getElementById('mName').value = '';
-            calendar.unselect();
         }
-    </script>
+    };
+
+    function closeModals() {
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        document.getElementById('mName').value = '';
+        calendar.unselect();
+    }
+</script>
 </body>
 </html>
